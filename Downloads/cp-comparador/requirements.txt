@@ -1,0 +1,11 @@
+# Coleta de dados / requisições HTTP
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# Versão web (ajuste conforme o framework escolhido)
+flask>=3.0.0
+
+# Versão desktop (Tkinter já vem com o Python padrão — sem dependência extra)
+
+# Testes
+pytest>=8.0.0

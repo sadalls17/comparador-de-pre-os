@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>CP — Comparador de Preços</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 16px; }
+    form { display: flex; gap: 8px; margin-bottom: 24px; }
+    input[type=text] { flex: 1; padding: 8px; font-size: 16px; }
+    button { padding: 8px 16px; font-size: 16px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+    .erro { color: #b00020; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <h1>CP — Comparador de Preços</h1>
+
+  <form method="get" action="/">
+    <input type="text" name="q" placeholder="Digite um produto (ex: rtx 4060)" value="{{ termo }}">
+    <button type="submit">Buscar</button>
+  </form>
+
+  {% if termo %}
+    {% if resultados %}
+      <table>
+        <thead>
+          <tr><th>Preço</th><th>Site</th><th>Disponível</th><th>Produto</th></tr>
+        </thead>
+        <tbody>
+          {% for r in resultados %}
+          <tr>
+            <td>R$ {{ "%.2f"|format(r.preco) }}</td>
+            <td>{{ r.site }}</td>
+            <td>{{ "Sim" if r.disponivel else "Não" }}</td>
+            <td><a href="{{ r.url }}" target="_blank">{{ r.produto }}</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>Nenhum resultado encontrado para "{{ termo }}".</p>
+    {% endif %}
+
+    {% if erros %}
+      <div class="erro">
+        {% for e in erros %}<p>{{ e }}</p>{% endfor %}
+      </div>
+    {% endif %}
+  {% endif %}
+</body>
+</html>
