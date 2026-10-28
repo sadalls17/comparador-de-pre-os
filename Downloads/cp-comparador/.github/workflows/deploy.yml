@@ -1,0 +1,69 @@
+name: CI/CD - CP Comparador de Precos
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: CI (testes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Rodar testes
+        run: python -m pytest
+
+      - name: Empacotar a aplicacao
+        run: |
+          mkdir -p dist
+          zip -r dist/cp-comparador.zip web desktop scraper requirements.txt README.md
+
+      - name: Publicar pacote como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: cp-comparador
+          path: dist/cp-comparador.zip
+
+  deploy-staging:
+    name: Deploy em staging
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Baixar pacote
+        uses: actions/download-artifact@v4
+        with:
+          name: cp-comparador
+
+      - name: Deploy (simulado) em staging
+        run: |
+          echo "Publicando cp-comparador.zip no ambiente de homologacao (staging)..."
+          unzip -l cp-comparador.zip
+          echo "Deploy em staging concluido."
+
+  deploy-production:
+    name: Deploy em production
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    # Este environment exige revisor obrigatorio: o job fica aguardando aprovacao
+    environment: production
+    steps:
+      - name: Baixar pacote
+        uses: actions/download-artifact@v4
+        with:
+          name: cp-comparador
+
+      - name: Deploy (simulado) em production
+        run: |
+          echo "Publicando cp-comparador.zip no ambiente de producao..."
+          unzip -l cp-comparador.zip
+          echo "Deploy em production concluido."
