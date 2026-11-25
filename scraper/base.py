@@ -17,6 +17,14 @@ class ResultadoPreco:
     disponivel: bool
     url: str
 
+    def __post_init__(self) -> None:
+        # Regra de negocio: um preco coletado nunca pode ser negativo.
+        if self.preco < 0:
+            raise ValueError(
+                f"Preco invalido ({self.preco}) para '{self.produto}' em {self.site}: "
+                "o preco nao pode ser negativo."
+            )
+
 
 class ColetorBase:
     """Interface que cada coletor de site deve implementar."""
