@@ -1,0 +1,44 @@
+name: Rollback
+
+# Reimplanta em production uma Release anterior (PGC 6.4).
+# Exige aprovacao no environment production e marca a tag como "Latest".
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag da Release a reimplantar (ex.: v0.0.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  rollback:
+    name: Rollback para ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Conferir se a Release existe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Reimplantar (simulado) a versao em production
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          echo "Reimplantando a baseline $TAG em production..."
+          git log -1 --oneline
+          echo "Rollback para $TAG concluido."
+
+      - name: Marcar a Release como Latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --latest
