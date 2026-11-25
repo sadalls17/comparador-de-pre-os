@@ -1,9 +1,16 @@
 name: CI/CD - CP Comparador de Precos
 
+# CI roda em todo PR para a main (gate de merge) e em todo push na main.
+# CD (staging -> production -> release) so roda apos merge na main.
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   ci:
@@ -20,7 +27,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Rodar testes
-        run: python -m pytest
+        run: python -m pytest -v
 
       - name: Empacotar a aplicacao
         run: |
@@ -36,6 +43,7 @@ jobs:
   deploy-staging:
     name: Deploy em staging
     needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: staging
     steps:
@@ -67,3 +75,41 @@ jobs:
           echo "Publicando cp-comparador.zip no ambiente de producao..."
           unzip -l cp-comparador.zip
           echo "Deploy em production concluido."
+
+  release:
+    name: Release (baseline SemVer)
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calcular proxima versao (Conventional Commits)
+        id: versao
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          ULTIMA=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          [ -z "$ULTIMA" ] && ULTIMA="v0.0.0"
+          IFS=. read -r MA MI PA <<< "${ULTIMA#v}"
+          if echo "$MSG" | grep -qE '^[a-z]+(\(.+\))?!:|BREAKING CHANGE'; then
+            MA=$((MA+1)); MI=0; PA=0
+          elif echo "$MSG" | grep -qE '^feat(\(.+\))?:'; then
+            MI=$((MI+1)); PA=0
+          elif echo "$MSG" | grep -qE '^fix(\(.+\))?:'; then
+            PA=$((PA+1))
+          else
+            echo "Sem feat/fix: nenhuma baseline nova."; echo "nova=" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "Baseline anterior: $ULTIMA -> nova: v$MA.$MI.$PA"
+          echo "nova=v$MA.$MI.$PA" >> "$GITHUB_OUTPUT"
+
+      - name: Criar tag e Release
+        if: steps.versao.outputs.nova != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.versao.outputs.nova }}
+        run: |
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes --latest \
+            --notes "Baseline gerada pelo pipeline. Execucao: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
